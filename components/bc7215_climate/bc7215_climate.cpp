@@ -328,7 +328,10 @@ void BC7215Climate::save_learning() {
 }
 
 void BC7215Climate::setup() {
-  serial_.begin(19200, SERIAL_8N2, 25, 33);
+  ESP_LOGCONFIG(TAG, "BC7215 pins: UART RX=GPIO%u TX=GPIO%u MOD=GPIO%u BUSY=GPIO%u",
+                unsigned(uart_rx_pin_), unsigned(uart_tx_pin_),
+                unsigned(mod_pin_), unsigned(busy_pin_));
+  serial_.begin(19200, SERIAL_8N2, uart_rx_pin_, uart_tx_pin_);
   board_.setRx(); delay(50);
   board_.setTx(); delay(50);
   board_.setShutDown(); delay(100);
