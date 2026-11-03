@@ -1,0 +1,259 @@
+esphome:
+  name: bc7215-ac
+  friendly_name: BC7215 klímavezérlő
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+# TTGO T-Display (klasszikus ESP32, ST7789V 135x240)
+spi:
+  clk_pin: GPIO18
+  mosi_pin: GPIO19
+
+output:
+  - platform: ledc
+    pin: GPIO4
+    id: tft_backlight_pwm
+
+light:
+  - platform: monochromatic
+    name: Kijelzo fenyero
+    id: tft_backlight
+    output: tft_backlight_pwm
+    restore_mode: ALWAYS_ON
+
+font:
+  - file: "gfonts://Roboto"
+    id: tft_small
+    size: 15
+  - file: "gfonts://Roboto"
+    id: tft_medium
+    size: 24
+  - file: "gfonts://Roboto"
+    id: tft_large
+    size: 44
+  - file: "gfonts://Roboto"
+    id: tft_buttons
+    size: 14
+  - file: "gfonts://Roboto"
+    id: tft_fan
+    size: 14
+
+display:
+  - platform: mipi_spi
+    model: T-DISPLAY
+    id: ac_display
+    rotation: 270
+    color_depth: 8
+    update_interval: 500ms
+    lambda: |-
+      it.fill(Color(8, 14, 24));
+      if (id(my_ac).learning()) {
+        const auto white = Color(238, 245, 255);
+        const auto dim = Color(144, 164, 188);
+        it.print(8, 4, id(tft_medium), white, "IR TANITAS");
+        it.print(8, 42, id(tft_small), white, id(my_ac).learning_status());
+        if (id(my_ac).learning_review()) {
+          it.printf(8, 64, id(tft_small), white, "MATCH: %d", id(my_ac).learning_match());
+          it.print(8, 97, id(tft_small), dim, "F: MEGSE  L: MENTES");
+        } else {
+          it.print(8, 95, id(tft_small), dim, "COOL 25C + FAN SPEED");
+        }
+        return;
+      }
+      auto white = Color(238, 245, 255);
+      auto dim = Color(144, 164, 188);
+      auto accent = id(my_ac).is_powered() ? Color(72, 205, 149) : dim;
+      it.print(8, 5, id(tft_small), dim, "BC7215  /  IR CLIMATE");
+      it.printf(8, 20, id(tft_large), white, "%d C", id(my_ac).set_temperature());
+      it.print(137, 27, id(tft_medium), accent, id(my_ac).hvac_label());
+      it.printf(137, 56, id(tft_fan), white, "FAN: %s", id(my_ac).fan_label());
+      it.line(8, 86, 232, 86, dim);
+      it.printf(8, 91, id(tft_small), white, "BC: %s", id(my_ac).ready() ? "OK" : "ERR");
+      it.print(116, 91, id(tft_small), white, id(ha_status).state ? "NET: ONLINE" : "NET: OFFLINE");
+      it.print(8, 113, id(tft_buttons), dim, "F: TEMP+ / FAN");
+      it.print(129, 113, id(tft_buttons), dim, "L: TEMP- / MODE");
+api:
+  reboot_timeout: 0s
+ota:
+  - platform: esphome
+    on_begin:
+      then:
+        - lambda: id(my_ac).clear_ota_state();
+    on_end:
+      then:
+        - lambda: id(my_ac).save_ota_state();
+    on_error:
+      then:
+        - lambda: id(my_ac).clear_ota_state();
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: BC7215-Fallback
+captive_portal:
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/Csernobog/esphome-bc7215-climate
+      ref: main
+    components: [bc7215_climate]
+
+climate:
+  - platform: bc7215_climate
+    name: Klíma
+    id: my_ac
+
+binary_sensor:
+  - platform: status
+    name: ESPHome kapcsolat
+    id: ha_status
+  - platform: template
+    name: BC7215 inicializálva
+    lambda: return id(my_ac).ready();
+  - platform: template
+    name: IR adás folyamatban
+    lambda: return id(my_ac).sending();
+  - platform: template
+    name: Utolsó IR timeout
+    lambda: return id(my_ac).ir_timeout();
+  - platform: template
+    name: OTA állapot visszaállítva
+    lambda: return id(my_ac).ota_restored();
+  - platform: template
+    name: IR vétel aktív
+    lambda: return id(my_ac).receiving();
+  - platform: template
+    name: IR adási hiba - újraindítás szükséges
+    lambda: return id(my_ac).tx_fault();
+  - platform: template
+    name: IR párosítva
+    lambda: return id(my_ac).paired();
+  - platform: template
+    name: Whirlpool Around U
+    id: around_u_status
+    lambda: |-
+      if (!id(my_ac).around_u_known()) return {};
+      return id(my_ac).around_u_enabled();
+  - platform: gpio
+    id: btn_left
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: true
+    internal: true
+    on_multi_click:
+      - timing:
+          - ON for at most 500ms
+          - OFF for at least 100ms
+        then:
+          - lambda: |-
+              if (id(my_ac).learning()) id(my_ac).cancel_learning();
+              else id(my_ac).temperature_delta(+1);
+      - timing:
+          - ON for at least 800ms
+        then:
+          - lambda: |-
+              if (id(my_ac).learning()) id(my_ac).next_learning_match();
+              else id(my_ac).next_fan();
+
+  - platform: gpio
+    id: btn_right
+    pin:
+      number: GPIO35
+      mode: INPUT
+      inverted: true
+    internal: true
+    on_multi_click:
+      - timing:
+          - ON for at most 500ms
+          - OFF for at least 100ms
+        then:
+          - lambda: |-
+              if (id(my_ac).learning()) id(my_ac).save_learning();
+              else id(my_ac).temperature_delta(-1);
+      - timing:
+          - ON for at least 800ms
+        then:
+          - lambda: |-
+              if (id(my_ac).learning()) id(my_ac).cancel_learning();
+              else id(my_ac).next_mode();
+
+sensor:
+  - platform: template
+    name: Whirlpool Around U hőmérséklet
+    id: around_u_temp
+    unit_of_measurement: "°C"
+    device_class: temperature
+    state_class: measurement
+    accuracy_decimals: 0
+    lambda: return id(my_ac).around_u_temperature();
+    update_interval: 10s
+  - platform: wifi_signal
+    name: WiFi jelszint
+    update_interval: 30s
+  - platform: uptime
+    name: Uptime
+    update_interval: 30s
+  - platform: template
+    name: IR adások száma
+    accuracy_decimals: 0
+    lambda: return id(my_ac).sent_count();
+    update_interval: 10s
+  - platform: template
+    name: IR timeoutok száma
+    accuracy_decimals: 0
+    lambda: return id(my_ac).error_count();
+    update_interval: 10s
+
+  - platform: template
+    name: Fogadott IR parancsok
+    accuracy_decimals: 0
+    lambda: return id(my_ac).rx_count();
+    update_interval: 10s
+  - platform: template
+    name: Sikertelen IR dekódolások
+    accuracy_decimals: 0
+    lambda: return id(my_ac).rx_error_count();
+    update_interval: 10s
+
+text_sensor:
+  - platform: template
+    name: IR protokoll azonosito
+    icon: mdi:remote
+    lambda: return id(my_ac).pairing_identity();
+    update_interval: 10s
+  - platform: wifi_info
+    ip_address:
+      name: IP-cím
+    ssid:
+      name: WiFi SSID
+
+button:
+  - platform: template
+    name: IR tanítás indítása
+    on_press:
+      - lambda: id(my_ac).begin_learning();
+  - platform: template
+    name: IR tanítás mentése
+    on_press:
+      - lambda: id(my_ac).save_learning();
+  - platform: template
+    name: IR tanítás következő egyezés
+    on_press:
+      - lambda: id(my_ac).next_learning_match();
+  - platform: template
+    name: IR tanítás megszakítása
+    on_press:
+      - lambda: id(my_ac).cancel_learning();
+  - platform: template
+    name: Klíma be-ki
+    on_press:
+      - lambda: id(my_ac).toggle_power();
+
+# TTGO T-Display reference setup. Home Assistant buttons manage pairing.
