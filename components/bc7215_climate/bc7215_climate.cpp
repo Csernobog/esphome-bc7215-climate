@@ -465,7 +465,7 @@ void BC7215Climate::next_mode() {
   powered_ = true; mode_ = (mode_ + 1) % 5; last_button_ = 2; transmit_();
 }
 void BC7215Climate::next_fan() {
-  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || (!around_u_known_ || around_u_enabled_)) return;
+  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || around_u_locked_()) return;
   fan_ = (fan_ + 1) % 4; last_button_ = 3; transmit_();
 }
 void BC7215Climate::toggle_power() {
