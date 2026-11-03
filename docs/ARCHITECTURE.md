@@ -12,6 +12,12 @@
 
 The BC7215AC dependency implements the actual A/C IR protocol recognition. It uses an IR reference frame captured from the remote. Supported brands/models are constrained by that library and available frames; **the integration does not provide universal support for every IR A/C**. There is no manufacturer/model recognition API for arbitrary learned signals, only a signature, bit length, and match index.
 
+### Profile selection
+
+`ac_profile: whirlpool` (default) keeps the existing Whirlpool-specific Around U decoding and HA safety lock exactly as tested. `ac_profile: generic` skips Whirlpool frame interpretation and disables this vendor-specific lock for regular IR A/C operations. In generic mode the Around U state remains unknown and its temperature is unavailable; examples should omit its entities. The profile is chosen at compile time by ESPHome config, not stored in NVS. The pairing payload and storage format are unchanged.
+
+This does not automatically provide full interoperability for every manufacturer, nor does it establish physical power-state feedback. In particular the decoder-level `power=2` toggle remains an estimate in both profiles.
+
 ### Whirlpool-specific interpretation
 
 `whirlpool_frame_` detects an observed 168-bit Whirlpool frame starting `83 06` and validates its XOR checksum. `decode_around_u_` interprets bytes 11–13 of this observed family. Other brands will not produce Whirlpool Around U state and may remain conservatively locked for HA control. **This must be generalized/configurable before claiming universal A/C support.**
@@ -21,7 +27,7 @@ For the tested Whirlpool, power value `2` is a **toggle** command. The firmware 
 ## Known pending engineering tasks
 
 1. Make UART, MOD and BUSY GPIO pins configurable in the ESPHome schema (currently fixed).
-2. Separate Whirlpool Around U decoding from the generic A/C transport and make the lock optional/brand-specific.
+2. Add genuinely configurable, per-brand power-state mappings and extended profile implementations.
 3. Audit `Current Temperature: 0.00°C`; show unavailable when no valid measurement exists.
 4. Reduce blocking `stopCapture`/UART calls that exceed ESPHome's 50 ms component time budget.
 5. Add a recovery button for `bc7215_prev` and review failure behavior on partial NVS writes.
