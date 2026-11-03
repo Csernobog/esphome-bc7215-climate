@@ -1,8 +1,7 @@
 # Minimal BC7215 ESPHome configuration for classic ESP32.
-# UART wiring is currently fixed in the C++ component:
-# ESP32 GPIO25 (RX) <- BC7215 TX; ESP32 GPIO33 (TX) -> BC7215 RX
-# GPIO27 -> MOD; GPIO26 <- BUSY. Verify module VCC = 3.3V and common GND.
-# WARNING: These pins are not yet configurable.
+# Default wiring: ESP32 GPIO25 (RX) <- BC7215 TX; GPIO33 (TX) -> BC7215 RX
+# GPIO27 -> MOD; GPIO26 <- BUSY. Pins can be customized under climate.
+# Verify module VCC = 3.3V and common GND.
 esphome:
   name: bc7215-minimal
   friendly_name: BC7215 Minimal
@@ -27,13 +26,18 @@ external_components:
   - source:
       type: git
       url: https://github.com/Csernobog/esphome-bc7215-climate
-      ref: main
+      ref: v1.0.0
     components: [bc7215_climate]
 
 climate:
   - platform: bc7215_climate
     name: Klima
     id: ac
+    uart_rx_pin: GPIO25
+    uart_tx_pin: GPIO33
+    mod_pin: GPIO27
+    busy_pin: GPIO26
+    ac_profile: generic
 
 binary_sensor:
   - platform: template

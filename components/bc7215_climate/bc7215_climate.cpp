@@ -75,11 +75,14 @@ static uint8_t whirlpool_crc_(const bc7215DataMaxPkt_t &pkt) {
 }
 bool BC7215Climate::whirlpool_frame_(const bc7215DataMaxPkt_t &pkt) const {
   // Match the observed SPIW 309L 168-bit frame, not arbitrary AC protocols.
+  // Byte 3 carries mode/setpoint information and is not constant: valid
+  // captures include 0x60, 0x70, 0x72, 0x73 and 0x74. Identify the observed
+  // Whirlpool frame by its length, header and XOR checksum instead.
   return pkt.bitLen == 168 && pkt.data[0] == 0x83 &&
-         pkt.data[1] == 0x06 && (pkt.data[3] == 0x60 || pkt.data[3] == 0x70) &&
-         pkt.data[13] == whirlpool_crc_(pkt);
+         pkt.data[1] == 0x06 && pkt.data[13] == whirlpool_crc_(pkt);
 }
 void BC7215Climate::decode_around_u_() {
+  if (!whirlpool_profile_) return;
   if (ac_.sampleCount != 1) return;
   const auto &pkt = ac_.sampleData[0];
   if (!whirlpool_frame_(pkt)) return;
@@ -328,7 +331,11 @@ void BC7215Climate::save_learning() {
 }
 
 void BC7215Climate::setup() {
-  serial_.begin(19200, SERIAL_8N2, 25, 33);
+  ESP_LOGCONFIG(TAG, "AC profile: %s", whirlpool_profile_ ? "whirlpool" : "generic");
+  ESP_LOGCONFIG(TAG, "BC7215 pins: UART RX=GPIO%u TX=GPIO%u MOD=GPIO%u BUSY=GPIO%u",
+                unsigned(uart_rx_pin_), unsigned(uart_tx_pin_),
+                unsigned(mod_pin_), unsigned(busy_pin_));
+  serial_.begin(19200, SERIAL_8N2, uart_rx_pin_, uart_tx_pin_);
   board_.setRx(); delay(50);
   board_.setTx(); delay(50);
   board_.setShutDown(); delay(100);
@@ -393,6 +400,10 @@ void BC7215Climate::transmit_() {
   publish_();
 }
 
+bool BC7215Climate::around_u_locked_() const {
+  return whirlpool_profile_ && (!around_u_known_ || around_u_enabled_);
+}
+
 void BC7215Climate::control(const climate::ClimateCall &call) {
   if (!paired_ || learning()) {
     ESP_LOGW(TAG, "Climate command rejected: unpaired or learning");
@@ -401,7 +412,7 @@ void BC7215Climate::control(const climate::ClimateCall &call) {
   if (!ready_ || pending_ || tx_fault_) { ESP_LOGW(TAG, "Command ignored: not ready / IR busy"); return; }
   // When ownership is unknown or belongs to the remote, allow only
   // an explicit OFF request. This must never enable the AC by accident.
-  if (!around_u_known_ || around_u_enabled_) {
+  if (around_u_locked_()) {
     if (call.get_mode().has_value() &&
         *call.get_mode() == climate::CLIMATE_MODE_OFF) {
       ESP_LOGI(TAG, "HA Climate OFF allowed under Around U lock");
@@ -446,23 +457,23 @@ void BC7215Climate::control(const climate::ClimateCall &call) {
 
 void BC7215Climate::temperature_delta(int delta) {
   if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || !powered_ || mode_ >= 3 ||
-      (!around_u_known_ || around_u_enabled_)) return;
+      around_u_locked_()) return;
   int next = temp_ + delta;
   if (next < 16 || next > 30) return;
   temp_ = next; last_button_ = delta > 0 ? 1 : 0; transmit_();
 }
 void BC7215Climate::next_mode() {
-  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || (!around_u_known_ || around_u_enabled_)) return;
+  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || around_u_locked_()) return;
   powered_ = true; mode_ = (mode_ + 1) % 5; last_button_ = 2; transmit_();
 }
 void BC7215Climate::next_fan() {
-  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || (!around_u_known_ || around_u_enabled_)) return;
+  if (!ready_ || !paired_ || learning() || pending_ || tx_fault_ || around_u_locked_()) return;
   fan_ = (fan_ + 1) % 4; last_button_ = 3; transmit_();
 }
 void BC7215Climate::toggle_power() {
   if (!ready_ || !paired_ || learning() || pending_ || tx_fault_) return;
   // While locked, the physical button may shut down the AC, but not power it on.
-  if ((!around_u_known_ || around_u_enabled_) && !powered_) {
+  if (around_u_locked_() && !powered_) {
     ESP_LOGW(TAG, "Power ON rejected: Around U enabled or unknown");
     return;
   }
@@ -509,7 +520,7 @@ void BC7215Climate::handle_received_() {
   if (t >= 16 && t <= 30) temp_ = t;
   if (m >= 0 && m <= 4) mode_ = m;
   if (f >= 0 && f <= 3) fan_ = f;
-  decode_around_u_();
+  if (whirlpool_profile_) decode_around_u_();
   ESP_LOGI(TAG, "IR RX mapped: powered=%d temp=%d mode=%d fan=%d",
            powered_ ? 1 : 0, temp_, mode_, fan_);
   publish_();

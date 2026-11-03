@@ -13,7 +13,19 @@ Tested target: **classic ESP32 TTGO T-Display (135×240 ST7789V)** and BC7215 IR
 
 The serial bus is **19200 baud, 8 data bits, no parity, 2 stop bits** (`SERIAL_8N2`). Module must be suitable for **3.3 V logic**. Check your specific board's silkscreen before connecting; GPIO numbering refers to the ESP32.
 
-The pin map is currently **hard-coded in the C++ component**. It is not yet a YAML-configurable option. Avoid GPIO conflicts with other peripherals.
+The pin map is configurable in the ESPHome `climate:` block. The defaults match the tested TTGO wiring:
+
+```yaml
+climate:
+  - platform: bc7215_climate
+    name: Klima
+    uart_rx_pin: GPIO25
+    uart_tx_pin: GPIO33
+    mod_pin: GPIO27
+    busy_pin: GPIO26
+```
+
+The four GPIOs must be distinct. ESPHome checks input/output capabilities of the chosen ESP32 pins. Use **internal** GPIOs (not I/O expanders) and avoid conflicts with other peripherals. Omitting the four options preserves the original pins.
 
 ### TTGO T-Display
 
