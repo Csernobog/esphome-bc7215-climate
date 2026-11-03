@@ -75,9 +75,11 @@ static uint8_t whirlpool_crc_(const bc7215DataMaxPkt_t &pkt) {
 }
 bool BC7215Climate::whirlpool_frame_(const bc7215DataMaxPkt_t &pkt) const {
   // Match the observed SPIW 309L 168-bit frame, not arbitrary AC protocols.
+  // Byte 3 carries mode/setpoint information and is not constant: valid
+  // captures include 0x60, 0x70, 0x72, 0x73 and 0x74. Identify the observed
+  // Whirlpool frame by its length, header and XOR checksum instead.
   return pkt.bitLen == 168 && pkt.data[0] == 0x83 &&
-         pkt.data[1] == 0x06 && (pkt.data[3] == 0x60 || pkt.data[3] == 0x70) &&
-         pkt.data[13] == whirlpool_crc_(pkt);
+         pkt.data[1] == 0x06 && pkt.data[13] == whirlpool_crc_(pkt);
 }
 void BC7215Climate::decode_around_u_() {
   if (!whirlpool_profile_) return;
