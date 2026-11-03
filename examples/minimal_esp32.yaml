@@ -1,0 +1,65 @@
+# Minimal BC7215 ESPHome configuration for classic ESP32.
+# UART wiring is currently fixed in the C++ component:
+# ESP32 GPIO25 (RX) <- BC7215 TX; ESP32 GPIO33 (TX) -> BC7215 RX
+# GPIO27 -> MOD; GPIO26 <- BUSY. Verify module VCC = 3.3V and common GND.
+# WARNING: These pins are not yet configurable.
+esphome:
+  name: bc7215-minimal
+  friendly_name: BC7215 Minimal
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/Csernobog/esphome-bc7215-climate
+      ref: main
+    components: [bc7215_climate]
+
+climate:
+  - platform: bc7215_climate
+    name: Klima
+    id: ac
+
+binary_sensor:
+  - platform: template
+    name: IR paired
+    lambda: return id(ac).paired();
+
+text_sensor:
+  - platform: template
+    name: IR protocol identity
+    lambda: return id(ac).pairing_identity();
+    update_interval: 10s
+
+button:
+  - platform: template
+    name: IR learning start
+    on_press:
+      - lambda: id(ac).begin_learning();
+  - platform: template
+    name: IR learning save
+    on_press:
+      - lambda: id(ac).save_learning();
+  - platform: template
+    name: IR learning cancel
+    on_press:
+      - lambda: id(ac).cancel_learning();
+  - platform: template
+    name: IR learning next match
+    on_press:
+      - lambda: id(ac).next_learning_match();
