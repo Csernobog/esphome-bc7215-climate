@@ -11,6 +11,8 @@ CONF_UART_RX_PIN = "uart_rx_pin"
 CONF_UART_TX_PIN = "uart_tx_pin"
 CONF_MOD_PIN = "mod_pin"
 CONF_BUSY_PIN = "busy_pin"
+CONF_AC_PROFILE = "ac_profile"
+
 
 
 def validate_pin_uniqueness(config):
@@ -32,6 +34,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_UART_TX_PIN, default=33): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_MOD_PIN, default=27): pins.internal_gpio_output_pin_number,
             cv.Optional(CONF_BUSY_PIN, default=26): pins.internal_gpio_input_pin_number,
+            cv.Optional(CONF_AC_PROFILE, default="whirlpool"): cv.one_of("whirlpool", "generic", lower=True),
         }
     ).extend(cv.COMPONENT_SCHEMA),
     validate_pin_uniqueness,
@@ -45,6 +48,7 @@ async def to_code(config):
         config[CONF_UART_TX_PIN],
         config[CONF_MOD_PIN],
         config[CONF_BUSY_PIN],
+        config[CONF_AC_PROFILE] == "whirlpool",
     )
     await cg.register_component(var, config)
     cg.add_library("Preferences", None)
