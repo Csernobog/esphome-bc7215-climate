@@ -71,6 +71,6 @@ Normal: F short temp+, F long fan cycle, L short temp−, L long HVAC mode cycle
 
 ## Build and versioning
 
-The version-pinned example uses `ref: v1.0.0` to prevent arbitrary updates from a moving `main` branch. For development only, change `ref` to a named feature branch and optionally set `refresh: 0s`. The upstream Bitcode library currently resolves from a GitHub URL without a pinned SHA, so the complete build is **not yet fully reproducible**.
+The example uses `ref: v1.0.0`, currently maintained as a **version branch** at the release snapshot, rather than an annotated Git tag. Do not move this branch after publishing; a formal GitHub release/tag should be created separately when the repository owner finalizes distribution. For development only, change `ref` to a named feature branch and optionally set `refresh: 0s`. The upstream Bitcode library currently resolves from a GitHub URL without a pinned SHA, so the complete build is **not yet fully reproducible**.
 
 See [hardware](HARDWARE.md), [learning](LEARNING.md), and [architecture](ARCHITECTURE.md).
