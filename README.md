@@ -41,7 +41,7 @@ climate:
     id: ac
 ```
 
-The component currently uses a fixed classic ESP32 pin layout and Arduino framework (see wiring guide). It pulls the upstream [bitcode-tech/bc7215ac](https://github.com/bitcode-tech/bc7215ac) Arduino library during build.
+The component uses Arduino framework. Its four BC7215 GPIOs are configurable with original TTGO defaults (see wiring guide). It pulls the upstream [bitcode-tech/bc7215ac](https://github.com/bitcode-tech/bc7215ac) Arduino library during build.
 
 ## Reference testing
 
