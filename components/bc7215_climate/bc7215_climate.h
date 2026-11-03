@@ -10,14 +10,15 @@
 namespace esphome::bc7215_climate {
 class BC7215Climate : public climate::Climate, public Component {
  public:
-  BC7215Climate(uint8_t uart_rx_pin, uint8_t uart_tx_pin, uint8_t mod_pin, uint8_t busy_pin)
+  BC7215Climate(uint8_t uart_rx_pin, uint8_t uart_tx_pin, uint8_t mod_pin, uint8_t busy_pin, bool whirlpool_profile)
       : serial_(1),
         board_(serial_, mod_pin, busy_pin),
         ac_(board_),
         uart_rx_pin_(uart_rx_pin),
         uart_tx_pin_(uart_tx_pin),
         mod_pin_(mod_pin),
-        busy_pin_(busy_pin) {}
+        busy_pin_(busy_pin),
+        whirlpool_profile_(whirlpool_profile) {}
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -43,10 +44,10 @@ class BC7215Climate : public climate::Climate, public Component {
   void clear_ota_state();
   bool ota_restored() const { return ota_restored_; }
   bool is_powered() const { return powered_; }
-  bool around_u_known() const { return around_u_known_; }
-  bool around_u_enabled() const { return around_u_enabled_; }
+  bool around_u_known() const { return whirlpool_profile_ && around_u_known_; }
+  bool around_u_enabled() const { return whirlpool_profile_ && around_u_enabled_; }
   float around_u_temperature() const {
-    return around_u_enabled_ && (millis() - around_u_last_rx_ms_ < 1500000UL)
+    return whirlpool_profile_ && around_u_enabled_ && (millis() - around_u_last_rx_ms_ < 1500000UL)
                ? around_u_temperature_ : NAN;
   }
   int set_temperature() const { return temp_; }
@@ -83,6 +84,7 @@ class BC7215Climate : public climate::Climate, public Component {
   void finish_learning_(bool save);
   bool whirlpool_frame_(const bc7215DataMaxPkt_t &pkt) const;
   void decode_around_u_();
+  bool around_u_locked_() const;
   void publish_();
   int mode_index_() const;
   HardwareSerial serial_;
@@ -92,6 +94,7 @@ class BC7215Climate : public climate::Climate, public Component {
   uint8_t uart_tx_pin_;
   uint8_t mod_pin_;
   uint8_t busy_pin_;
+  bool whirlpool_profile_;
   bool ready_{false}, pending_{false}, timed_out_{false};
   bool receiving_{false}, tx_fault_{false};
   bool powered_{false};
