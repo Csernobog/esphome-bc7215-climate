@@ -20,19 +20,19 @@ This does not automatically provide full interoperability for every manufacturer
 
 ### Whirlpool-specific interpretation
 
-`whirlpool_frame_` detects an observed 168-bit Whirlpool frame starting `83 06` and validates its XOR checksum. `decode_around_u_` interprets bytes 11–13 of this observed family. Other brands will not produce Whirlpool Around U state and may remain conservatively locked for HA control. **This must be generalized/configurable before claiming universal A/C support.**
+`whirlpool_frame_` detects an observed 168-bit Whirlpool frame starting `83 06` and validates its XOR checksum. The fourth byte is variable across operating modes (`0x60`, `0x70`, `0x72`, `0x73`, `0x74` were observed): it must **not** be restricted to `0x60`/`0x70`, which previously broke Around U reception. `decode_around_u_` interprets bytes 11–13 of this observed family. Other brands will not produce Whirlpool Around U state and may remain conservatively locked for HA control. **This must be generalized/configurable before claiming universal A/C support.**
 
 For the tested Whirlpool, power value `2` is a **toggle** command. The firmware estimates ON/OFF by flipping the prior observed state; a missed remote signal or physical AC action can invalidate that estimate.
 
 ## Known pending engineering tasks
 
-1. Make UART, MOD and BUSY GPIO pins configurable in the ESPHome schema (currently fixed).
+1. Validate alternate ESP32 GPIO mappings and additional hardware boards.
 2. Add genuinely configurable, per-brand power-state mappings and extended profile implementations.
 3. Audit `Current Temperature: 0.00°C`; show unavailable when no valid measurement exists.
 4. Reduce blocking `stopCapture`/UART calls that exceed ESPHome's 50 ms component time budget.
 5. Add a recovery button for `bc7215_prev` and review failure behavior on partial NVS writes.
 6. Pin a tested upstream BC7215AC library revision and run independent build/OTA tests on this repository.
 7. Review multi-segment protocols and non-Whirlpool devices.
-8. Define release licensing, version tags and CI build smoke checks.
+8. Resolve source redistribution license, pin a tested upstream revision, and add CI build smoke checks.
 
-No claim of CI or hardware test is made for the *extracted* repository until it is tested independently.
+The standalone repository was compiled and OTA-tested on ESPHome 2026.9.1 with the TTGO Whirlpool reference system. The generic profile and alternate physical GPIO layouts have not been tested on separate hardware. Around U ON/OFF and 20 °C readout were verified after the mode-byte filter fix.
