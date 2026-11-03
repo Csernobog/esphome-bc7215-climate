@@ -1,0 +1,13 @@
+# ESPHome/Python generated files
+__pycache__/
+*.py[cod]
+.esphome/
+.pio/
+.platformio/
+.vscode/
+.idea/
+*.bin
+*.elf
+*.map
+secrets.yaml
+*.log
