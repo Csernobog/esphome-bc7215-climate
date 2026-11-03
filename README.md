@@ -25,6 +25,20 @@ Custom ESPHome climate component for an **ESP32 + BC7215 infrared transceiver**.
 
 Read the full [learning and NVS procedure](docs/LEARNING.md) **before saving**.
 
+## AC profiles
+
+Set `ac_profile: whirlpool` (the **default**, retained for existing TTGO installations) to enable the Whirlpool SPIW 309L Around U interpretation and its conservative safety lock. Select `ac_profile: generic` for ordinary BC7215AC learning and climate control on other devices; it does not interpret Whirlpool Around U frames and does not apply the Around U lock. Generic does **not** mean every A/C protocol is supported: recognition still depends on the upstream library and a successful learning sample.
+
+```yaml
+climate:
+  - platform: bc7215_climate
+    name: Air Conditioner
+    id: ac
+    ac_profile: generic  # whirlpool for the tested SPIW 309L
+```
+
+For `generic`, omit the Whirlpool-specific Around U sensor entities from your example configuration. The IR `power=2` toggle interpretation is still estimated and shared by both profiles; additional manufacturers may need their own power mapping. Pairing NVS and learn/save semantics are unchanged by profile selection. **Do not switch profiles to bypass protections on an active Whirlpool installation.**
+
 ## External component
 
 ```yaml
