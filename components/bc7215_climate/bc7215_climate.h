@@ -10,7 +10,14 @@
 namespace esphome::bc7215_climate {
 class BC7215Climate : public climate::Climate, public Component {
  public:
-  BC7215Climate() : serial_(1), board_(serial_, 27, 26), ac_(board_) {}
+  BC7215Climate(uint8_t uart_rx_pin, uint8_t uart_tx_pin, uint8_t mod_pin, uint8_t busy_pin)
+      : serial_(1),
+        board_(serial_, mod_pin, busy_pin),
+        ac_(board_),
+        uart_rx_pin_(uart_rx_pin),
+        uart_tx_pin_(uart_tx_pin),
+        mod_pin_(mod_pin),
+        busy_pin_(busy_pin) {}
   void setup() override;
   void loop() override;
   void dump_config() override;
@@ -81,6 +88,10 @@ class BC7215Climate : public climate::Climate, public Component {
   HardwareSerial serial_;
   BC7215 board_;
   BC7215AC ac_;
+  uint8_t uart_rx_pin_;
+  uint8_t uart_tx_pin_;
+  uint8_t mod_pin_;
+  uint8_t busy_pin_;
   bool ready_{false}, pending_{false}, timed_out_{false};
   bool receiving_{false}, tx_fault_{false};
   bool powered_{false};
